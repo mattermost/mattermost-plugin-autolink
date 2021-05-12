@@ -6,18 +6,20 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost-server/v5/model"
 	"github.com/mattermost/mattermost-server/v5/plugin"
-	"github.com/mattermost/mattermost-server/v5/utils/markdown"
+	"github.com/mattermost/mattermost-server/v5/shared/markdown"
 
 	"github.com/mattermost/mattermost-plugin-autolink/server/api"
+	"github.com/mattermost/mattermost-plugin-autolink/server/autolinkapp"
 )
 
 // Plugin the main struct for everything
 type Plugin struct {
 	plugin.MattermostPlugin
 
-	handler *api.Handler
+	handler http.Handler
 
 	// configuration and a muttex to control concurrent access
 	conf     *Config
@@ -31,8 +33,12 @@ func New() *Plugin {
 }
 
 func (p *Plugin) OnActivate() error {
-	p.handler = api.NewHandler(p, p)
+	root := mux.NewRouter()
 
+	api.RegisterHandler(root, p, p)
+	autolinkapp.RegisterHandler(root, p, p)
+
+	p.handler = root
 	return nil
 }
 
@@ -236,4 +242,17 @@ func (p *Plugin) MessageWillBeUpdated(c *plugin.Context, post *model.Post, _ *mo
 	}
 
 	return p.ProcessPost(c, post)
+}
+
+func (p *Plugin) GetSiteURL() string {
+	s := p.API.GetConfig().ServiceSettings.SiteURL
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func (p *Plugin) GetPluginURL() string {
+	siteURL := p.GetSiteURL()
+	return siteURL + "/plugins/mattermost-autolink"
 }

@@ -25,13 +25,12 @@ type Handler struct {
 	authorization Authorization
 }
 
-func NewHandler(store Store, authorization Authorization) *Handler {
+func RegisterHandler(root *mux.Router, store Store, authorization Authorization) {
 	h := &Handler{
 		store:         store,
 		authorization: authorization,
 	}
 
-	root := mux.NewRouter()
 	api := root.PathPrefix("/api/v1").Subrouter()
 	api.Use(h.adminOrPluginRequired)
 	api.HandleFunc("/link", h.setLink).Methods("POST")
@@ -39,8 +38,6 @@ func NewHandler(store Store, authorization Authorization) *Handler {
 	api.Handle("{anything:.*}", http.NotFoundHandler())
 
 	h.root = root
-
-	return h
 }
 
 func (h *Handler) handleError(w http.ResponseWriter, err error) {
